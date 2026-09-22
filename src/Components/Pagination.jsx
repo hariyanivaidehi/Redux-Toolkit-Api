@@ -12,34 +12,88 @@ export default function Pagination() {
 
   if (totalPages <= 1) return null;
 
+  // Calculate visible page numbers
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
+
   return (
-    <div className="flex justify-center items-center gap-2 mt-10 pt-6 border-t border-slate-200">
+    <div className="flex justify-center items-center gap-1.5 mt-10 pt-6 border-t border-slate-200">
+      {/* Less than < Button */}
       <button
         onClick={() => dispatch(setCurrentPage(currentPage - 1))}
         disabled={currentPage === 1}
-        className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+        title="Previous Page"
+        className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-sm active:scale-95"
       >
-        ← Prev
+        &lt;
       </button>
 
-      <div className="flex items-center gap-1.5 px-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Page
-        </span>
-        <span className="px-3 py-1 rounded-lg bg-indigo-600 text-white font-bold text-sm shadow-sm shadow-indigo-200">
-          {currentPage}
-        </span>
-        <span className="text-xs font-semibold text-slate-400">
-          of {totalPages}
-        </span>
-      </div>
+      {/* First Page */}
+      {pageNumbers[0] > 1 && (
+        <>
+          <button
+            onClick={() => dispatch(setCurrentPage(1))}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition shadow-sm"
+          >
+            1
+          </button>
+          {pageNumbers[0] > 2 && <span className="px-1 text-slate-400 text-xs">...</span>}
+        </>
+      )}
 
+      {/* Number Buttons */}
+      {pageNumbers.map((num) => (
+        <button
+          key={num}
+          onClick={() => dispatch(setCurrentPage(num))}
+          className={`w-9 h-9 flex items-center justify-center rounded-xl font-bold text-xs transition shadow-sm active:scale-95 ${
+            currentPage === num
+              ? 'bg-indigo-600 text-white shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-2'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          {num}
+        </button>
+      ))}
+
+      {/* Last Page */}
+      {pageNumbers[pageNumbers.length - 1] < totalPages && (
+        <>
+          {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+            <span className="px-1 text-slate-400 text-xs">...</span>
+          )}
+          <button
+            onClick={() => dispatch(setCurrentPage(totalPages))}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition shadow-sm"
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+
+      {/* Greater than > Button */}
       <button
         onClick={() => dispatch(setCurrentPage(currentPage + 1))}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+        title="Next Page"
+        className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-sm active:scale-95"
       >
-        Next →
+        &gt;
       </button>
     </div>
   );
