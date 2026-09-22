@@ -1,8 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
-import productReducer from './ProductSlice';
+import stickerReducer from './StickerSlice';
 
 export const store = configureStore({
   reducer: {
-    products: productReducer,
+    stickers: stickerReducer,
+    // Alias for backward compatibility
+    products: stickerReducer,
   },
 });

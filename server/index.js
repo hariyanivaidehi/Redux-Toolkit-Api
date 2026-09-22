@@ -1,167 +1,239 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 5000;
 
-app.use(cors()); 
-app.use(express.json()); 
+app.use(cors());
+app.use(express.json());
 
-let products = [
-  {
-    id: 1,
-    title: 'iPhone 15 Pro',
-    category: 'Smartphones',
-    price: 999,
-    rating: 4.8,
-    stock: 25,
-    thumbnail: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&auto=format&fit=crop&q=60',
-    description: 'Latest Apple flagship with titanium body and A17 Pro chip.'
-  },
-  {
-    id: 2,
-    title: 'MacBook Air M3',
-    category: 'Laptops',
-    price: 1199,
-    rating: 4.9,
-    stock: 15,
-    thumbnail: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&auto=format&fit=crop&q=60',
-    description: 'Thin, fast laptop with Apple Silicon M3 power.'
-  },
-  {
-    id: 3,
-    title: 'Sony WH-1000XM5',
-    category: 'Audio',
-    price: 399,
-    rating: 4.7,
-    stock: 40,
-    thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=60',
-    description: 'Industry-leading noise canceling wireless headphones.'
-  },
-  {
-    id: 4,
-    title: 'Samsung Galaxy S24 Ultra',
-    category: 'Smartphones',
-    price: 1299,
-    rating: 4.7,
-    stock: 18,
-    thumbnail: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&auto=format&fit=crop&q=60',
-    description: 'AI-powered phone with 200MP camera and S-Pen.'
-  },
-  {
-    id: 5,
-    title: 'Apple Watch Ultra 2',
-    category: 'Wearables',
-    price: 799,
-    rating: 4.6,
-    stock: 30,
-    thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=60',
-    description: 'Rugged titanium smartwatch with precision GPS.'
-  },
-  {
-    id: 6,
-    title: 'Dell XPS 15',
-    category: 'Laptops',
-    price: 1499,
-    rating: 4.5,
-    stock: 12,
-    thumbnail: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&auto=format&fit=crop&q=60',
-    description: 'InfinityEdge 4K display and powerful Intel Core i7.'
-  }
-];
+// Path to data file
+const dataPath = path.resolve(__dirname, 'data/picsartStickers.json');
 
-// Fetch large dataset from DummyJSON API on startup
-const loadInitialProducts = async () => {
+// In-memory stickers store
+let stickers = [];
+
+// Initialize stickers from disk
+function loadStickers() {
   try {
-    const res = await fetch('https://dummyjson.com/products?limit=100');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.products && data.products.length > 0) {
-        products = data.products.map((item) => ({
-          id: item.id,
-          title: item.title,
-          category: item.category ? item.category.charAt(0).toUpperCase() + item.category.slice(1) : 'General',
-          price: item.price,
-          rating: item.rating || 4.5,
-          stock: item.stock || 15,
-          thumbnail: item.thumbnail || (item.images && item.images[0]) || 'https://via.placeholder.com/300',
-          description: item.description || ''
-        }));
-        console.log(`✅ Loaded ${products.length} products successfully from DummyJSON API!`);
-      }
+    if (fs.existsSync(dataPath)) {
+      const raw = fs.readFileSync(dataPath, 'utf-8');
+      stickers = JSON.parse(raw);
+      console.log(`✅ Loaded ${stickers.length} PicsArt stickers from disk!`);
+    } else {
+      console.log('⚠️ picsartStickers.json not found on disk, using empty array.');
     }
   } catch (err) {
-    console.log('⚠️ Could not fetch from DummyJSON, using default products list.', err.message);
+    console.error('Failed to load stickers data:', err.message);
   }
-};
-
-loadInitialProducts();
+}
+loadStickers();
 
 // ==========================
-// 📌 CRUD API ROUTES
+// 🎨 PICSART STICKER API ROUTES
 // ==========================
 
-// 1. READ (GET all products)
-app.get('/api/products', (req, res) => {
-  res.json({ success: true, count: products.length, data: products });
+// 1. GET (Read all stickers or filter by category/search)
+app.get('/api/stickers', (req, res) => {
+  const { category, search } = req.query;
+  let results = [...stickers];
+
+  if (category && category.toLowerCase() !== 'all') {
+    results = results.filter((s) => s.category && s.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (search) {
+    const q = search.toLowerCase();
+    results = results.filter(
+      (s) =>
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.category && s.category.toLowerCase().includes(q))
+    );
+  }
+
+  res.json({
+    success: true,
+    count: results.length,
+    stickers: results,
+    data: results, // backwards compatibility
+  });
 });
 
-// 2. CREATE (POST new product)
-app.post('/api/products', (req, res) => {
-  const { title, category, price, rating, stock, thumbnail, description } = req.body;
+// Alias: /api/products also returns stickers
+app.get('/api/products', (req, res) => {
+  res.json({
+    success: true,
+    count: stickers.length,
+    data: stickers.map((s) => ({
+      ...s,
+      title: s.name,
+      thumbnail: s.url,
+      price: 0,
+      rating: 4.8,
+      stock: 100,
+    })),
+  });
+});
 
-  if (!title || !price) {
-    return res.status(400).json({ success: false, message: 'Title and Price are required!' });
+// 2. CREATE (POST add custom sticker)
+app.post('/api/stickers', (req, res) => {
+  const { name, category, url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ success: false, message: 'Sticker Image URL is required!' });
   }
 
-  const newProduct = {
-    id: Date.now(), // Unique ID
-    title,
-    category: category || 'General',
-    price: Number(price),
-    rating: Number(rating) || 4.5,
-    stock: Number(stock) || 10,
-    thumbnail: thumbnail || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=60',
-    description: description || ''
+  const newSticker = {
+    id: `custom-${Date.now()}`,
+    name: name || `Sticker #${stickers.length + 1}`,
+    category: category || 'Custom',
+    url,
   };
 
-  products.unshift(newProduct); // આગળ add થશે
-  res.status(201).json({ success: true, message: 'Product added successfully!', data: newProduct });
+  stickers.unshift(newSticker);
+
+  // Save to disk
+  try {
+    fs.writeFileSync(dataPath, JSON.stringify(stickers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving sticker to file:', err.message);
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Sticker added successfully!',
+    data: newSticker,
+    sticker: newSticker,
+  });
 });
 
-// 3. UPDATE (PUT edit product)
-app.put('/api/products/:id', (req, res) => {
+// 3. UPDATE (PUT edit sticker)
+app.put('/api/stickers/:id', (req, res) => {
   const { id } = req.params;
-  const index = products.findIndex((p) => p.id === Number(id));
+  const index = stickers.findIndex((s) => String(s.id) === String(id));
 
   if (index === -1) {
-    return res.status(404).json({ success: false, message: 'Product not found!' });
+    return res.status(404).json({ success: false, message: 'Sticker not found!' });
   }
 
-  products[index] = {
-    ...products[index],
+  stickers[index] = {
+    ...stickers[index],
     ...req.body,
-    price: req.body.price ? Number(req.body.price) : products[index].price,
-    rating: req.body.rating ? Number(req.body.rating) : products[index].rating,
   };
 
-  res.json({ success: true, message: 'Product updated successfully!', data: products[index] });
-});
-
-// 4. DELETE (DELETE remove product)
-app.delete('/api/products/:id', (req, res) => {
-  const { id } = req.params;
-  const initialLength = products.length;
-  products = products.filter((p) => p.id !== Number(id));
-
-  if (products.length === initialLength) {
-    return res.status(404).json({ success: false, message: 'Product not found!' });
+  // Save to disk
+  try {
+    fs.writeFileSync(dataPath, JSON.stringify(stickers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error updating sticker to file:', err.message);
   }
 
-  res.json({ success: true, message: 'Product deleted successfully!', id: Number(id) });
+  res.json({
+    success: true,
+    message: 'Sticker updated successfully!',
+    data: stickers[index],
+    sticker: stickers[index],
+  });
+});
+
+// 4. DELETE (DELETE remove sticker)
+app.delete('/api/stickers/:id', (req, res) => {
+  const { id } = req.params;
+  const initialLength = stickers.length;
+  stickers = stickers.filter((s) => String(s.id) !== String(id));
+
+  if (stickers.length === initialLength) {
+    return res.status(404).json({ success: false, message: 'Sticker not found!' });
+  }
+
+  // Save to disk
+  try {
+    fs.writeFileSync(dataPath, JSON.stringify(stickers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving after delete:', err.message);
+  }
+
+  res.json({ success: true, message: 'Sticker deleted successfully!', id });
+});
+
+// 5. LIVE SCRAPER (POST scrape PicsArt live for any category or keyword)
+app.post('/api/stickers/scrape', async (req, res) => {
+  try {
+    const category = (req.body.category || req.query.category || 'aesthetic').toLowerCase();
+    const targetUrl = `https://picsart.com/stickers/${category}`;
+
+    console.log(`📡 [PicsArt Scraper] Scraping URL: ${targetUrl}...`);
+    const response = await fetch(targetUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        message: `PicsArt responded with HTTP ${response.status}`,
+      });
+    }
+
+    const html = await response.text();
+    const imgMatches =
+      html.match(
+        /https:\/\/(?:yearly-cdn\.picsart\.com\/cdn140|pastatic\.picsart\.com\/cms-pastatic|cdn140\.picsart\.com)[^"'\s]+\.(?:png|webp)/g
+      ) || [];
+
+    const uniqueUrls = [...new Set(imgMatches)];
+
+    const newStickers = uniqueUrls.map((imgUrl, idx) => ({
+      id: `${category}-${Date.now()}-${idx}`,
+      category: category.charAt(0).toUpperCase() + category.slice(1),
+      name: `${category.charAt(0).toUpperCase() + category.slice(1)} #${idx + 1}`,
+      url: imgUrl,
+    }));
+
+    // Merge and deduplicate
+    const seen = new Set(stickers.map((s) => s.url));
+    let addedCount = 0;
+
+    for (const item of newStickers) {
+      if (!seen.has(item.url)) {
+        seen.add(item.url);
+        stickers.unshift(item);
+        addedCount++;
+      }
+    }
+
+    // Persist to disk
+    try {
+      fs.writeFileSync(dataPath, JSON.stringify(stickers, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving scraped stickers:', err.message);
+    }
+
+    console.log(`🎉 Scraped ${newStickers.length} stickers (${addedCount} newly added) for "${category}"`);
+
+    res.json({
+      success: true,
+      message: `Scraped ${newStickers.length} stickers (${addedCount} new) for "${category}"`,
+      category,
+      addedCount,
+      totalStickers: stickers.length,
+      stickers: newStickers,
+    });
+  } catch (error) {
+    console.error('Scraping error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // Start Server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 PicsArt Sticker Server running on http://localhost:${PORT}`);
 });

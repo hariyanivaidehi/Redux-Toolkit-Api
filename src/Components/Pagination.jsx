@@ -1,14 +1,14 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setCurrentPage } from '../store/ProductSlice';
+import { setCurrentPage } from '../store/StickerSlice';
 
 export default function Pagination() {
   const dispatch = useDispatch();
   const { filteredItems, currentPage, itemsPerPage } = useSelector(
-    (state) => state.products
+    (state) => state.stickers || state.products
   );
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const totalPages = Math.ceil((filteredItems ? filteredItems.length : 0) / itemsPerPage);
 
   if (totalPages <= 1) return null;
 
