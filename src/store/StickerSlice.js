@@ -96,7 +96,7 @@ const initialState = {
   searchTerm: '',
   selectedCategory: 'All',
   currentPage: 1,
-  itemsPerPage: 12,
+  itemsPerPage: 16,
   isScraping: false,
 };
 
